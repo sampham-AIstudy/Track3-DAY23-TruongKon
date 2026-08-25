@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
+import sqlite3
+from pathlib import Path
+
+from langgraph.types import Checkpointer
 
 
-def build_checkpointer(kind: str = "memory", database_url: str | None = None) -> Any | None:
+def build_checkpointer(
+    kind: str = "memory", database_url: str | None = None
+) -> Checkpointer:
     """Return a LangGraph checkpointer.
 
-    TODO(student): implement SQLite support for the persistence extension track.
+    SQLite support is included for the persistence extension track.
     The starter provides MemorySaver only — SQLite/Postgres are extension tasks.
 
     For SQLite:
@@ -23,12 +28,22 @@ def build_checkpointer(kind: str = "memory", database_url: str | None = None) ->
 
         return MemorySaver()
     if kind == "sqlite":
-        raise NotImplementedError(
-            "TODO(student): implement SQLite checkpointer. "
-            "Hint: pip install langgraph-checkpoint-sqlite, then use SqliteSaver"
-        )
+        try:
+            from langgraph.checkpoint.sqlite import SqliteSaver  # type: ignore[import-not-found]
+        except ImportError as exc:
+            raise RuntimeError(
+                "SQLite persistence requires langgraph-checkpoint-sqlite. "
+                "Install the project with the [sqlite] extra."
+            ) from exc
+
+        database_path = database_url or "checkpoints.db"
+        if database_path.startswith("sqlite:///"):
+            database_path = database_path.removeprefix("sqlite:///")
+        path = Path(database_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(path, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL")
+        return SqliteSaver(conn=conn)
     if kind == "postgres":
-        raise NotImplementedError(
-            "TODO(student): implement Postgres checkpointer (optional extension)"
-        )
+        raise ValueError("Postgres checkpointer is an optional extension and is not implemented")
     raise ValueError(f"Unknown checkpointer kind: {kind}")

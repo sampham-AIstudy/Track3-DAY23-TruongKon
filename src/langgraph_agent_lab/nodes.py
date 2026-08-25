@@ -119,18 +119,60 @@ def risky_action_node(state: AgentState) -> dict:
 
     Return: {"proposed_action": str, "events": [make_event(...)]}
     """
-    raise NotImplementedError("TODO(student): implement risky action preparation")
+    query = state.get("query", "").strip()
+    risk_level = state.get("risk_level", "high")
+    proposed_action = (
+        "Proposed action:\n"
+        f"- Review and carry out the requested action: {query}\n"
+        f"- Risk level: {risk_level}\n"
+        "- Requires approval before execution"
+    )
+    return {
+        "proposed_action": proposed_action,
+        "events": [
+            make_event(
+                "risky_action",
+                "proposed",
+                "risky action prepared without executing side effects",
+            )
+        ],
+    }
 
 
 def approval_node(state: AgentState) -> dict:
     """Human-in-the-loop approval step.
 
     Default behavior: mock approval (approved=True) so tests and CI run offline.
-    Extension: if env LANGGRAPH_INTERRUPT=true, use langgraph.types.interrupt() for real HITL.
+    A real ``interrupt()``/resume flow is intentionally left as a future extension.
 
-    Return: {"approval": {"approved": bool, "reviewer": str, "comment": str}, "events": [make_event(...)]}
+    Return: {"approval": {...}, "events": [make_event(...)]}
     """
-    raise NotImplementedError("TODO(student): implement approval with mock default")
+    supplied_decision = state.get("approval")
+    if isinstance(supplied_decision, dict) and "approved" in supplied_decision:
+        approval = {
+            "approved": bool(supplied_decision["approved"]),
+            "reviewer": str(supplied_decision.get("reviewer", "mock-reviewer")),
+            "comment": str(supplied_decision.get("comment", "")),
+        }
+    else:
+        approval = {
+            "approved": True,
+            "reviewer": "mock-reviewer",
+            "comment": "Approved automatically for the core lab workflow.",
+        }
+    event_type = "approved" if approval["approved"] else "rejected"
+    return {
+        "approval": approval,
+        "events": [
+            make_event(
+                "approval",
+                event_type,
+                "approval decision recorded before action execution",
+                proposed_action=state.get("proposed_action", ""),
+                reviewer=approval["reviewer"],
+            )
+        ],
+    }
 
 
 def retry_or_fallback_node(state: AgentState) -> dict:
@@ -164,4 +206,4 @@ def finalize_node(state: AgentState) -> dict:
 
     Return: {"events": [make_event("finalize", "completed", "workflow finished")]}
     """
-    raise NotImplementedError("TODO(student): implement finalize node")
+    return {"events": [make_event("finalize", "completed", "workflow finished")]}
