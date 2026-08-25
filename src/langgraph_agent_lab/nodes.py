@@ -20,16 +20,50 @@ class Classification(BaseModel):
 def _fallback_classification(query: str) -> tuple[str, str]:
     """Classify generically when the configured LLM provider is unavailable."""
     normalized = query.casefold()
-    risky_terms = ("refund", "delete", "cancel", "send email", "send a message")
-    tool_terms = ("lookup", "look up", "order status", "tracking", "search for")
+    risky_terms = (
+        "refund",
+        "delete",
+        "cancel",
+        "send email",
+        "send a message",
+        "hoàn tiền",
+        "xóa",
+        "hủy",
+        "gửi email",
+        "gửi tin nhắn",
+    )
+    tool_terms = (
+        "lookup",
+        "look up",
+        "order status",
+        "tracking",
+        "search for",
+        "tra cứu",
+        "kiểm tra đơn hàng",
+        "tìm kiếm",
+    )
     missing_phrases = (
         "fix it",
         "doesn't work",
         "does not work",
         "something is wrong",
         "help me",
+        "sửa giúp",
+        "không hoạt động",
+        "có vấn đề",
+        "giúp tôi",
     )
-    error_terms = ("timeout", "failure", "crash", "service unavailable", "system error")
+    error_terms = (
+        "timeout",
+        "failure",
+        "crash",
+        "service unavailable",
+        "system error",
+        "hết thời gian",
+        "bị sập",
+        "không khả dụng",
+        "lỗi hệ thống",
+    )
     if any(term in normalized for term in risky_terms):
         return "risky", "high"
     if any(term in normalized for term in tool_terms):
