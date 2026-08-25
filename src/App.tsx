@@ -70,6 +70,20 @@ function App() {
   const darkPhase = scrollProgress > 0.55
   const navColor = darkPhase ? '#ffffff' : DARK
   const navItems = useMemo(() => navigation, [])
+  const scrollToProgress = (progress: number) => {
+    const container = containerRef.current
+    if (!container) return
+    const span = container.offsetHeight - window.innerHeight
+    window.scrollTo({ top: Math.max(0, span * progress), behavior: 'smooth' })
+  }
+  const activateNav = (index: number) => {
+    if (index === 4) {
+      setAuditOpen(true)
+      return
+    }
+    scrollToProgress([0.04, 0.36, 0.46, 0.78][index] ?? 0.04)
+    setMenuOpen(false)
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => setNavReady(true), 200)
@@ -103,7 +117,7 @@ function App() {
           style={{ opacity: canvasLive ? 1 : 0 }}
         />
 
-        <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0">
           <nav
             className="pointer-events-auto absolute z-50 flex w-full items-center justify-between px-6 pb-6 pt-8 sm:px-8 sm:pt-12 md:px-12"
             style={{ color: navColor, transition: 'color 500ms ease' }}
@@ -124,6 +138,7 @@ function App() {
                   <button
                     key={item}
                     type="button"
+                    onClick={() => activateNav(index)}
                     className="relative text-xs font-medium tracking-[0.15em] transition-opacity hover:opacity-70"
                     style={{
                       opacity: navReady ? 1 : 0,
@@ -147,11 +162,11 @@ function App() {
                 transition: 'opacity 0.6s cubic-bezier(0.16,1,0.3,1) 500ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) 500ms',
               }}
             >
-              <span className="text-xs font-medium tracking-[0.2em]">STATUS</span>
+              <button type="button" onClick={() => setAuditOpen(true)} className="text-xs font-medium tracking-[0.2em]">STATUS</button>
               <button type="button" aria-label="Open audit trail" onClick={() => setAuditOpen(true)} className="flex h-5 w-5 items-center justify-center rounded-full" style={{ backgroundColor: navColor }}>
                 <Info size={10} style={{ color: darkPhase ? DARK : '#ffffff' }} />
               </button>
-              <button type="button" onClick={() => setMenuOpen(true)} className="text-xs font-medium tracking-[0.2em] lg:pointer-events-none">
+              <button type="button" onClick={() => setMenuOpen(true)} className="text-xs font-medium tracking-[0.2em]">
                 MENU
               </button>
             </div>
@@ -178,7 +193,8 @@ function App() {
               <button
                 type="button"
                 aria-label="Explore orchestration"
-                className="pointer-events-auto absolute bottom-12 right-6 flex h-12 w-12 items-center justify-center rounded-full border transition-opacity hover:opacity-70 sm:right-8 md:right-12"
+                onClick={() => scrollToProgress(0.36)}
+                className="absolute bottom-12 right-6 flex h-12 w-12 items-center justify-center rounded-full border transition-opacity hover:opacity-70 sm:right-8 md:right-12"
                 style={{ borderColor: 'rgba(22,44,61,0.5)', color: DARK }}
               >
                 <ArrowRight size={18} />
@@ -198,13 +214,13 @@ function App() {
             </Revealed>
             <div className="absolute bottom-16 right-6 flex flex-col items-center gap-4 sm:right-8 md:right-12" style={{ color: DARK }}>
               <Revealed active={s2Opacity > 0.3} delay={200}>
-                <button type="button" aria-label="Move down" className="flex h-12 w-12 items-center justify-center rounded-full border" style={{ borderColor: 'rgba(22,44,61,0.4)' }}><ArrowDown size={18} /></button>
+                <button type="button" onClick={() => scrollToProgress(0.75)} aria-label="Move down" className="flex h-12 w-12 items-center justify-center rounded-full border" style={{ borderColor: 'rgba(22,44,61,0.4)' }}><ArrowDown size={18} /></button>
               </Revealed>
               <Revealed active={s2Opacity > 0.3} delay={350}>
                 <div className="mt-4 flex flex-col items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: DARK }} /><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'rgba(22,44,61,0.4)' }} /><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: 'rgba(22,44,61,0.4)' }} /></div>
               </Revealed>
               <Revealed active={s2Opacity > 0.3} delay={500}>
-                <button type="button" aria-label="Move up" className="mt-2 flex h-10 w-10 items-center justify-center rounded-full border" style={{ borderColor: 'rgba(22,44,61,0.3)', color: 'rgba(22,44,61,0.8)' }}><ChevronUp size={16} /></button>
+                <button type="button" onClick={() => scrollToProgress(0.05)} aria-label="Move up" className="mt-2 flex h-10 w-10 items-center justify-center rounded-full border" style={{ borderColor: 'rgba(22,44,61,0.3)', color: 'rgba(22,44,61,0.8)' }}><ChevronUp size={16} /></button>
               </Revealed>
             </div>
           </section>
@@ -224,7 +240,7 @@ function App() {
                 </h2>
               </Revealed>
               <Revealed active={s3Opacity > 0.3} delay={300}>
-                <button type="button" onClick={() => setAuditOpen(true)} className="pointer-events-auto flex items-center gap-4 text-sm tracking-[0.3em] text-white/80">
+                <button type="button" onClick={() => setAuditOpen(true)} className="flex items-center gap-4 text-sm tracking-[0.3em] text-white/80">
                   EXPLORE THE AUDIT TRAIL
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-gray-800 transition-transform duration-300 hover:scale-110"><ArrowRight size={16} /></span>
                 </button>
@@ -238,7 +254,7 @@ function App() {
         <div className={`flex h-full flex-col transition-transform duration-500 ${menuOpen ? 'translate-y-0' : '-translate-y-8'}`} style={{ transitionTimingFunction: 'cubic-bezier(0.4,0,0.2,1)' }}>
           <div className="flex justify-end px-6 pt-8 sm:px-8 sm:pt-12"><button type="button" onClick={() => setMenuOpen(false)} aria-label="Close menu" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 transition-colors hover:border-white"><X size={18} /></button></div>
           <div className="flex flex-1 flex-col justify-center px-8 sm:px-12">
-            {navItems.map((item, index) => <button key={item} type="button" onClick={() => setMenuOpen(false)} className={`py-3 text-left text-2xl font-light tracking-wide transition-colors sm:text-3xl ${index === 0 ? 'text-white' : 'text-white/60 hover:text-white'}`} style={{ opacity: menuOpen ? 1 : 0, transform: menuOpen ? 'translateY(0)' : 'translateY(20px)', transition: `opacity 0.6s cubic-bezier(0.16,1,0.3,1) ${index * 60}ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${index * 60}ms` }}>{item}</button>)}
+            {navItems.map((item, index) => <button key={item} type="button" onClick={() => activateNav(index)} className={`py-3 text-left text-2xl font-light tracking-wide transition-colors sm:text-3xl ${index === 0 ? 'text-white' : 'text-white/60 hover:text-white'}`} style={{ opacity: menuOpen ? 1 : 0, transform: menuOpen ? 'translateY(0)' : 'translateY(20px)', transition: `opacity 0.6s cubic-bezier(0.16,1,0.3,1) ${index * 60}ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${index * 60}ms` }}>{item}</button>)}
           </div>
           <div className="flex gap-8 px-8 pb-10 text-xs tracking-[0.2em] text-white/60 sm:px-12"><span>RECOVERY</span><span>AUDIT TRAIL</span></div>
         </div>
