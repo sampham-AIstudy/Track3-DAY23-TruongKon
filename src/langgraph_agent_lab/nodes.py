@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -62,6 +63,21 @@ def intake_node(state: AgentState) -> dict:
 def classify_node(state: AgentState) -> dict:
     """Classify a query with Gemini structured output."""
     query = state.get("query", "")
+    if os.getenv("LANGGRAPH_OFFLINE_DEMO") == "true":
+        route, fallback_risk_level = _fallback_classification(query)
+        return {
+            "route": route,
+            "risk_level": fallback_risk_level,
+            "events": [
+                make_event(
+                    "classify",
+                    "offline_demo",
+                    "offline demo classifier used",
+                    route=route,
+                    risk_level=fallback_risk_level,
+                )
+            ],
+        }
     prompt = f"""Classify this support request into exactly one route.
 Priority when multiple intents are present: risky > tool > missing_info > error > simple.
 - risky: side effects such as refunds, deletion, cancellation, or sending messages
@@ -80,17 +96,17 @@ Request: {query}"""
             if isinstance(raw_decision, Classification)
             else Classification.model_validate(raw_decision)
         )
-        risk_level: str = "high" if decision.route == "risky" else decision.risk_level
+        llm_risk_level: str = "high" if decision.route == "risky" else decision.risk_level
         return {
             "route": decision.route,
-            "risk_level": risk_level,
+            "risk_level": llm_risk_level,
             "events": [
                 make_event(
                     "classify",
                     "completed",
                     "query classified",
                     route=decision.route,
-                    risk_level=risk_level,
+                    risk_level=llm_risk_level,
                 )
             ],
         }
@@ -172,6 +188,14 @@ def answer_node(state: AgentState) -> dict:
         "approval": state.get("approval"),
         "proposed_action": state.get("proposed_action"),
     }
+    if os.getenv("LANGGRAPH_OFFLINE_DEMO") == "true":
+        return {
+            "final_answer": (
+                "Offline demo response grounded in workflow context: "
+                f"query={query!r}; tool_results={context['tool_results']!r}."
+            ),
+            "events": [make_event("answer", "offline_demo", "offline demo answer generated")],
+        }
     prompt = f"""Answer the user's request helpfully and concisely.
 Use only the request and the supplied context. Do not invent tool results.
 Do not claim an action was completed unless the context contains evidence of completion.
@@ -208,6 +232,18 @@ Context: {context}
 def ask_clarification_node(state: AgentState) -> dict:
     """Ask one specific question when the request lacks actionable detail."""
     query = state.get("query", "")
+    if os.getenv("LANGGRAPH_OFFLINE_DEMO") == "true":
+        question = (
+            "Which system or service is affected, and what exact error message, "
+            "order identifier, or action are you trying to complete?"
+        )
+        return {
+            "pending_question": question,
+            "final_answer": question,
+            "events": [
+                make_event("clarify", "offline_demo", "offline demo clarification generated")
+            ],
+        }
     prompt = f"""Ask one specific, actionable clarification question for this vague support request.
 Do not answer the request or invent missing facts. Ask for the system/service and the concrete
 error, item, or action needed. Reply with the question only.

@@ -2,8 +2,12 @@
 
 ## 1. Team / student
 
-- Student: Track3-DAY23-TruongKon team
-- Date: generated from the scenario metrics run
+- **Thành viên nhóm**:
+  1. Phạm Văn Sâm - 2A202601837
+  2. Mai Quốc Hiếu - 2A202601141
+  3. Nguyễn Minh Thái - 2A202601619
+- Repo/commit: Track3-DAY23-TruongKon
+- Date: 2026-08-25
 
 ## 2. Architecture
 
@@ -65,13 +69,8 @@ classifier selects `risky`. **Containment:** `risky_action` prepares a proposal 
 **Residual risk:** core approval is a mock decision, not real human interrupt/resume.
 
 Recorded runtime errors:
-- `S01_simple`: classification LLM failed; fallback used: GoogleInvalidRequestError; answer LLM failed; grounded fallback used: GoogleInvalidRequestError
-- `S02_tool`: classification LLM failed; fallback used: GoogleInvalidRequestError; answer LLM failed; grounded fallback used: GoogleInvalidRequestError
-- `S03_missing`: classification LLM failed; fallback used: GoogleInvalidRequestError; clarification generation failed: GoogleInvalidRequestError
-- `S04_risky`: classification LLM failed; fallback used: GoogleInvalidRequestError; answer LLM failed; grounded fallback used: GoogleInvalidRequestError
-- `S05_error`: classification LLM failed; fallback used: GoogleInvalidRequestError; retry attempt 1 recorded after transient tool failure; ERROR: simulated transient failure at attempt 1 for: Timeout failure while processing request; retry attempt 2 recorded after transient tool failure; answer LLM failed; grounded fallback used: GoogleInvalidRequestError
-- `S06_delete`: classification LLM failed; fallback used: GoogleInvalidRequestError; answer LLM failed; grounded fallback used: GoogleInvalidRequestError
-- `S07_dead_letter`: classification LLM failed; fallback used: GoogleInvalidRequestError; retry attempt 1 recorded after transient tool failure
+- `S05_error`: retry attempt 1 recorded after transient tool failure; ERROR: simulated transient failure at attempt 1 for: Timeout failure while processing request; retry attempt 2 recorded after transient tool failure
+- `S07_dead_letter`: retry attempt 1 recorded after transient tool failure
 
 ## 6. Persistence / recovery evidence
 

@@ -39,8 +39,12 @@ def render_report(metrics: MetricsReport) -> str:
 
 ## 1. Team / student
 
-- Student: Track3-DAY23-TruongKon team
-- Date: generated from the scenario metrics run
+- **Thành viên nhóm**:
+  1. Phạm Văn Sâm - 2A202601837
+  2. Mai Quốc Hiếu - 2A202601141
+  3. Nguyễn Minh Thái - 2A202601619
+- Repo/commit: Track3-DAY23-TruongKon
+- Date: 2026-08-25
 
 ## 2. Architecture
 

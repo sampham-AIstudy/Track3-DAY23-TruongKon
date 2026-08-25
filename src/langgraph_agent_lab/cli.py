@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Annotated, cast
 
@@ -47,6 +48,54 @@ def run_scenarios(
     if cfg.get("report_path"):
         write_report(report, cfg["report_path"])
     typer.echo(f"Wrote metrics to {output}")
+
+
+@app.command("demo")
+def demo(
+    config: Annotated[Path, typer.Option("--config")],
+    offline: Annotated[bool, typer.Option("--offline/--live")] = True,
+) -> None:
+    """Run every sample scenario and print its complete LangGraph audit trail."""
+    cfg = yaml.safe_load(config.read_text(encoding="utf-8"))
+    previous_offline = os.environ.get("LANGGRAPH_OFFLINE_DEMO")
+    if offline:
+        os.environ["LANGGRAPH_OFFLINE_DEMO"] = "true"
+    scenarios = load_scenarios(cfg["scenarios_path"])
+    graph = build_graph(
+        checkpointer=build_checkpointer(
+            cfg.get("checkpointer", "memory"), cfg.get("database_url")
+        )
+    )
+    try:
+        for scenario in scenarios:
+            state = initial_state(scenario)
+            run_config = cast(
+                RunnableConfig, {"configurable": {"thread_id": state["thread_id"]}}
+            )
+            result = graph.invoke(state, config=run_config)
+            trace = " -> ".join(
+                event.get("node", "unknown") for event in result.get("events", [])
+            )
+            terminal = (
+                result.get("final_answer")
+                or result.get("pending_question")
+                or "(no terminal response)"
+            )
+            typer.echo(
+                f"\n{scenario.id}: expected={scenario.expected_route.value} "
+                f"actual={result.get('route')}"
+            )
+            typer.echo(f"  trace: {trace}")
+            typer.echo(f"  terminal: {terminal}")
+            if result.get("tool_results"):
+                typer.echo(f"  tool_results: {result['tool_results']}")
+            if result.get("errors"):
+                typer.echo(f"  audit_errors: {result['errors']}")
+    finally:
+        if previous_offline is None:
+            os.environ.pop("LANGGRAPH_OFFLINE_DEMO", None)
+        else:
+            os.environ["LANGGRAPH_OFFLINE_DEMO"] = previous_offline
 
 
 @app.command("validate-metrics")
