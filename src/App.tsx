@@ -281,6 +281,32 @@ function App() {
                   TRẠNG THÁI CÓ KIỂU. QUYẾT ĐỊNH CÓ KIỂM SOÁT. KẾT QUẢ CÓ THỂ KIỂM TOÁN.
                 </p>
               </Revealed>
+              <Revealed active={s1Opacity > 0.3} delay={260}>
+                <div className="mt-8 max-w-4xl border-y border-[#162C3D]/30 py-4 text-[10px] font-medium tracking-[0.12em] sm:text-xs">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-3" style={{ color: DARK }}>
+                    <span className="border border-[#162C3D]/45 px-2.5 py-2">TIẾP NHẬN</span>
+                    <ArrowRight size={13} className="opacity-60" />
+                    <span className="border border-[#162C3D]/45 px-2.5 py-2">PHÂN LOẠI</span>
+                    <ArrowRight size={13} className="opacity-60" />
+                    <span className="border border-[#162C3D]/45 px-2.5 py-2">CÔNG CỤ</span>
+                    <ArrowRight size={13} className="opacity-60" />
+                    <span className="border border-[#162C3D]/45 px-2.5 py-2">ĐÁNH GIÁ</span>
+                    <ArrowRight size={13} className="opacity-60" />
+                    <span className="border border-[#162C3D]/45 px-2.5 py-2">TRẢ LỜI</span>
+                    <ArrowRight size={13} className="opacity-60" />
+                    <span className="border border-[#162C3D]/45 px-2.5 py-2">KẾT THÚC</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-3 text-[#2F657C]">
+                    <span>HÀNH ĐỘNG RỦI RO</span>
+                    <ArrowRight size={13} />
+                    <span className="border border-[#2F657C]/60 px-2.5 py-2">ĐỀ XUẤT</span>
+                    <ArrowRight size={13} />
+                    <span className="border border-[#2F657C]/60 px-2.5 py-2">PHÊ DUYỆT</span>
+                    <ArrowRight size={13} />
+                    <span>ĐỒNG Ý MỚI ĐƯỢC GỌI CÔNG CỤ</span>
+                  </div>
+                </div>
+              </Revealed>
             </div>
             <Revealed active={s1Opacity > 0.3} delay={300}>
               <button
