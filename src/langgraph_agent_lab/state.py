@@ -41,8 +41,7 @@ class ApprovalDecision(BaseModel):
 class AgentState(TypedDict, total=False):
     """LangGraph state.
 
-    TODO(student): decide which fields should be append-only and which should be overwritten.
-    The current annotations give a safe starting point for auditability.
+    Append-only fields use ``operator.add``; scalar fields overwrite their prior value.
     """
 
     thread_id: str
@@ -53,9 +52,6 @@ class AgentState(TypedDict, total=False):
     attempt: int
     max_attempts: int
     final_answer: str | None
-    # TODO(student): you will need additional fields for clarification, risky actions,
-    # approval decisions, and retry-loop gating. Add them as you implement nodes.
-    # Hint: check what your nodes return and what your routing functions read.
     evaluation_result: str | None
     pending_question: str | None
     proposed_action: str | None

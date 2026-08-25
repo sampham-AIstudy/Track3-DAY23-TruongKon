@@ -16,6 +16,30 @@ class Classification(BaseModel):
     reason: str = Field(min_length=1)
 
 
+def _fallback_classification(query: str) -> tuple[str, str]:
+    """Classify generically when the configured LLM provider is unavailable."""
+    normalized = query.casefold()
+    risky_terms = ("refund", "delete", "cancel", "send email", "send a message")
+    tool_terms = ("lookup", "look up", "order status", "tracking", "search for")
+    missing_phrases = (
+        "fix it",
+        "doesn't work",
+        "does not work",
+        "something is wrong",
+        "help me",
+    )
+    error_terms = ("timeout", "failure", "crash", "service unavailable", "system error")
+    if any(term in normalized for term in risky_terms):
+        return "risky", "high"
+    if any(term in normalized for term in tool_terms):
+        return "tool", "low"
+    if any(phrase in normalized for phrase in missing_phrases):
+        return "missing_info", "low"
+    if any(term in normalized for term in error_terms):
+        return "error", "low"
+    return "simple", "low"
+
+
 def _response_text(response: object) -> str:
     content = getattr(response, "content", response)
     if isinstance(content, list):
@@ -48,8 +72,15 @@ Priority when multiple intents are present: risky > tool > missing_info > error 
 Return only the structured schema.
 Request: {query}"""
     try:
-        decision = get_llm(temperature=0).with_structured_output(Classification).invoke(prompt)
-        risk_level = "high" if decision.route == "risky" else decision.risk_level
+        raw_decision = get_llm(temperature=0).with_structured_output(Classification).invoke(
+            prompt
+        )
+        decision = (
+            raw_decision
+            if isinstance(raw_decision, Classification)
+            else Classification.model_validate(raw_decision)
+        )
+        risk_level: str = "high" if decision.route == "risky" else decision.risk_level
         return {
             "route": decision.route,
             "risk_level": risk_level,
@@ -64,22 +95,73 @@ Request: {query}"""
             ],
         }
     except Exception as exc:
+        route, risk_level = _fallback_classification(query)
         return {
-            "route": "error",
-            "risk_level": "low",
-            "errors": [f"classification failed: {type(exc).__name__}"],
-            "events": [make_event("classify", "failed", "LLM classification failed")],
+            "route": route,
+            "risk_level": risk_level,
+            "errors": [f"classification LLM failed; fallback used: {type(exc).__name__}"],
+            "events": [
+                make_event(
+                    "classify",
+                    "fallback",
+                    "LLM classification failed; generic fallback classification used",
+                    route=route,
+                    risk_level=risk_level,
+                )
+            ],
         }
 
 
 def tool_node(state: AgentState) -> dict:
     """Execute a mock tool call."""
-    raise NotImplementedError("TODO(student): implement mock tool with error simulation")
+    attempt = state.get("attempt", 0)
+    route = state.get("route", "")
+    query = state.get("query", "")
+    approval = state.get("approval")
+    approved = (
+        approval.get("approved", False)
+        if isinstance(approval, dict)
+        else bool(getattr(approval, "approved", False))
+    )
+
+    if route == "risky" and not approved:
+        result = "ERROR: Risky tool execution blocked because approval is missing or rejected"
+        return {
+            "tool_results": [result],
+            "errors": [result],
+            "events": [make_event("tool", "blocked", "risky action blocked before execution")],
+        }
+
+    if route == "error" and attempt < 2:
+        result = f"ERROR: simulated transient failure at attempt {attempt} for: {query}"
+        return {
+            "tool_results": [result],
+            "errors": [result],
+            "events": [make_event("tool", "failed", "mock tool returned a transient error")],
+        }
+
+    result = f"Mock tool execution succeeded for: {query}"
+    return {
+        "tool_results": [result],
+        "events": [make_event("tool", "completed", f"mock tool completed at attempt {attempt}")],
+    }
 
 
 def evaluate_node(state: AgentState) -> dict:
     """Evaluate tool results."""
-    raise NotImplementedError("TODO(student): implement tool result evaluation")
+    tool_results = state.get("tool_results", [])
+    latest_result = tool_results[-1] if tool_results else "ERROR: no tool result available"
+    evaluation_result = "needs_retry" if "ERROR" in latest_result else "success"
+    return {
+        "evaluation_result": evaluation_result,
+        "events": [
+            make_event(
+                "evaluate",
+                "completed",
+                f"latest tool result evaluated as {evaluation_result}",
+            )
+        ],
+    }
 
 
 def answer_node(state: AgentState) -> dict:
@@ -108,11 +190,18 @@ Context: {context}
     except Exception as exc:
         return {
             "final_answer": (
-                "Mình chưa thể hoàn tất câu trả lời vì dịch vụ AI đang gặp sự cố. "
-                "Vui lòng thử lại sau."
+                "The language-model provider is unavailable. The workflow completed "
+                f"with this available context: query={query!r}; "
+                f"tool_results={state.get('tool_results', [])!r}."
             ),
-            "errors": [f"answer generation failed: {type(exc).__name__}"],
-            "events": [make_event("answer", "failed", "LLM answer generation failed")],
+            "errors": [f"answer LLM failed; grounded fallback used: {type(exc).__name__}"],
+            "events": [
+                make_event(
+                    "answer",
+                    "fallback",
+                    "LLM answer generation failed; grounded fallback response used",
+                )
+            ],
         }
 
 
@@ -129,8 +218,8 @@ Request: {query}"""
             raise ValueError("LLM returned an empty clarification")
     except Exception as exc:
         question = (
-            "Bạn đang gặp vấn đề ở hệ thống hoặc dịch vụ nào, và lỗi cụ thể "
-            "đang hiển thị là gì?"
+            "Which system or service is affected, and what exact error message, "
+            "order identifier, or action are you trying to complete?"
         )
         return {
             "pending_question": question,
@@ -210,12 +299,32 @@ def approval_node(state: AgentState) -> dict:
     }
 def retry_or_fallback_node(state: AgentState) -> dict:
     """Record a retry attempt."""
-    raise NotImplementedError("TODO(student): implement retry with attempt tracking")
+    attempt = state.get("attempt", 0) + 1
+    error = f"retry attempt {attempt} recorded after transient tool failure"
+    return {
+        "attempt": attempt,
+        "errors": [error],
+        "events": [make_event("retry", "completed", error)],
+    }
 
 
 def dead_letter_node(state: AgentState) -> dict:
     """Handle unresolvable failures after max retries."""
-    raise NotImplementedError("TODO(student): implement dead letter handling")
+    attempt = state.get("attempt", 0)
+    max_attempts = state.get("max_attempts", 0)
+    return {
+        "final_answer": (
+            "The request could not be completed after the configured retry limit "
+            "and has been escalated for manual review."
+        ),
+        "events": [
+            make_event(
+                "dead_letter",
+                "completed",
+                f"retry limit exhausted ({attempt}/{max_attempts}); escalated for review",
+            )
+        ],
+    }
 
 
 def finalize_node(state: AgentState) -> dict:
