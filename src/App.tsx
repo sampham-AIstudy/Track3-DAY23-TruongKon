@@ -31,6 +31,45 @@ type MetricsArtifact = {
 
 const metrics = metricsArtifact as MetricsArtifact
 
+type WorkflowEvent = {
+  node: string
+  event_type: string
+  message: string
+}
+
+type WorkflowResult = {
+  thread_id: string
+  route: string
+  final_answer: string | null
+  pending_question: string | null
+  proposed_action: string | null
+  approval: { approved: boolean; reviewer: string; comment: string } | null
+  tool_results: string[]
+  errors: string[]
+  events: WorkflowEvent[]
+}
+
+type DemoCase = {
+  label: string
+  query: string
+  max_attempts?: number
+  approval?: { approved: boolean; reviewer: string; comment: string }
+}
+
+const demoCases: DemoCase[] = [
+  { label: 'SIMPLE', query: 'How do I reset my password?' },
+  { label: 'TOOL', query: 'Please lookup order status for order 12345' },
+  { label: 'CLARIFY', query: 'Can you fix it?' },
+  { label: 'RISKY / APPROVED', query: 'Refund this customer and send confirmation email' },
+  { label: 'RETRY / RECOVER', query: 'Timeout failure while processing request' },
+  { label: 'DEAD LETTER', query: 'System failure cannot recover after multiple attempts', max_attempts: 1 },
+  {
+    label: 'RISKY / REJECTED',
+    query: 'Delete customer account after support verification',
+    approval: { approved: false, reviewer: 'demo reviewer', comment: 'Need more information' },
+  },
+]
+
 function sectionTwoOpacity(progress: number) {
   if (progress < 0.32) return 0
   if (progress < 0.4) return (progress - 0.32) / 0.08
@@ -64,6 +103,9 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [auditOpen, setAuditOpen] = useState(false)
   const [navReady, setNavReady] = useState(false)
+  const [workflowResult, setWorkflowResult] = useState<WorkflowResult | null>(null)
+  const [activeDemo, setActiveDemo] = useState<string | null>(null)
+  const [demoError, setDemoError] = useState<string | null>(null)
   const s1Opacity = scrollProgress < 0.2 ? 1 : Math.max(0, 1 - (scrollProgress - 0.2) / 0.08)
   const s2Opacity = sectionTwoOpacity(scrollProgress)
   const s3Opacity = sectionThreeOpacity(scrollProgress)
@@ -83,6 +125,29 @@ function App() {
     }
     scrollToProgress([0.04, 0.36, 0.46, 0.78][index] ?? 0.04)
     setMenuOpen(false)
+  }
+  const runDemo = async (demo: DemoCase) => {
+    setActiveDemo(demo.label)
+    setDemoError(null)
+    setWorkflowResult(null)
+    try {
+      const response = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: demo.query,
+          max_attempts: demo.max_attempts,
+          approval: demo.approval,
+        }),
+      })
+      const payload = (await response.json()) as WorkflowResult & { error?: string }
+      if (!response.ok) throw new Error(payload.error ?? 'Workflow request failed')
+      setWorkflowResult(payload)
+    } catch (error) {
+      setDemoError(error instanceof Error ? error.message : 'Unable to reach the local demo API')
+    } finally {
+      setActiveDemo(null)
+    }
   }
 
   useEffect(() => {
@@ -269,6 +334,75 @@ function App() {
             </div>
             <button type="button" onClick={() => setAuditOpen(false)} aria-label="Close audit trail" className="flex h-10 w-10 items-center justify-center rounded-full border border-white/30 transition-colors hover:border-white"><X size={18} /></button>
           </div>
+
+          <section className="border-b border-white/20 py-10" aria-live="polite">
+            <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+              <div>
+                <p className="text-xs tracking-[0.3em] text-white/50">LIVE WORKFLOW DEMO</p>
+                <h3 className="mt-2 text-2xl font-light tracking-wide sm:text-3xl">RUN A REAL GRAPH</h3>
+              </div>
+              <p className="max-w-xl text-sm leading-6 tracking-wide text-white/60">
+                Select a flow. The browser calls the local LangGraph API and renders the returned audit events.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-3">
+              {demoCases.map((demo) => {
+                const running = activeDemo === demo.label
+                return (
+                  <button
+                    key={demo.label}
+                    type="button"
+                    disabled={activeDemo !== null}
+                    onClick={() => void runDemo(demo)}
+                    className="border border-white/30 px-4 py-3 text-xs tracking-[0.16em] transition-colors hover:border-white hover:bg-white hover:text-[#162C3D] disabled:cursor-wait disabled:opacity-50"
+                  >
+                    {running ? 'RUNNING…' : demo.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {demoError && (
+              <p className="mt-6 border border-red-200/40 px-4 py-3 text-sm text-red-100">
+                API unavailable: {demoError}. Start the local demo API, then try again.
+              </p>
+            )}
+
+            {workflowResult && (
+              <div className="mt-8 border border-white/20">
+                <div className="flex flex-col gap-4 border-b border-white/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[10px] tracking-[0.2em] text-white/50">LIVE RESULT</p>
+                    <p className="mt-1 text-xl font-light tracking-wide">ROUTE: {workflowResult.route.toUpperCase()}</p>
+                  </div>
+                  <p className="text-xs tracking-[0.12em] text-white/50">{workflowResult.thread_id}</p>
+                </div>
+
+                <div className="grid gap-6 px-5 py-6 lg:grid-cols-[1.2fr_1fr]">
+                  <div>
+                    <p className="text-[10px] tracking-[0.2em] text-white/50">EVENT TRAIL</p>
+                    <ol className="mt-4 flex flex-wrap gap-2">
+                      {workflowResult.events.map((event, index) => (
+                        <li key={`${event.node}-${index}`} className="flex items-center gap-2 text-xs tracking-[0.12em]">
+                          <span className="border border-white/30 px-2 py-1.5">{event.node}</span>
+                          {index < workflowResult.events.length - 1 && <ArrowRight size={12} className="text-white/40" />}
+                        </li>
+                      ))}
+                    </ol>
+                    <p className="mt-5 text-sm leading-7 text-white/75">
+                      {workflowResult.final_answer ?? workflowResult.pending_question ?? 'Workflow completed without a terminal message.'}
+                    </p>
+                  </div>
+                  <div className="space-y-4 text-sm leading-6 text-white/70">
+                    {workflowResult.proposed_action && <p><span className="text-white/40">PROPOSAL · </span>{workflowResult.proposed_action}</p>}
+                    {workflowResult.approval && <p><span className="text-white/40">APPROVAL · </span>{workflowResult.approval.approved ? 'APPROVED' : 'REJECTED'} — {workflowResult.approval.reviewer}</p>}
+                    {workflowResult.tool_results.length > 0 && <p><span className="text-white/40">TOOL · </span>{workflowResult.tool_results.join(' | ')}</p>}
+                    {workflowResult.errors.length > 0 && <p><span className="text-white/40">AUDIT ERRORS · </span>{workflowResult.errors.join(' | ')}</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+          </section>
 
           <div className="grid gap-8 py-12 md:grid-cols-2">
             <dl className="grid grid-cols-2 gap-x-8 gap-y-6 text-sm tracking-[0.15em] sm:grid-cols-3">

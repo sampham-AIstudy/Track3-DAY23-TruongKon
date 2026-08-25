@@ -26,14 +26,22 @@ CHECKPOINTER = build_checkpointer("memory")
 GRAPH = build_graph(checkpointer=CHECKPOINTER)
 
 
-def run_workflow(query: str) -> dict[str, Any]:
+def run_workflow(
+    query: str,
+    *,
+    approval: dict[str, Any] | None = None,
+    max_attempts: int = 3,
+) -> dict[str, Any]:
     """Invoke a fresh, isolated workflow thread and return audit-safe fields."""
     scenario = Scenario(
         id=f"browser-demo-{uuid4().hex}",
         query=query,
         expected_route=Route.SIMPLE,
+        max_attempts=max_attempts,
     )
     state = initial_state(scenario)
+    if approval is not None:
+        state["approval"] = approval
     result = GRAPH.invoke(state, config={"configurable": {"thread_id": state["thread_id"]}})
     return {
         "thread_id": result["thread_id"],
@@ -75,7 +83,16 @@ class DemoHandler(BaseHTTPRequestHandler):
             query = str(payload.get("query", "")).strip()
             if not query:
                 raise ValueError("query is required")
-            self._write_json(HTTPStatus.OK, run_workflow(query))
+            approval = payload.get("approval")
+            if approval is not None and not isinstance(approval, dict):
+                raise ValueError("approval must be an object")
+            max_attempts = int(payload.get("max_attempts", 3))
+            if not 1 <= max_attempts <= 5:
+                raise ValueError("max_attempts must be between 1 and 5")
+            self._write_json(
+                HTTPStatus.OK,
+                run_workflow(query, approval=approval, max_attempts=max_attempts),
+            )
         except (ValueError, json.JSONDecodeError) as exc:
             self._write_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
         except Exception:

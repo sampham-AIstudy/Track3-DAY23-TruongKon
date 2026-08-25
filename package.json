@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "demo:api": "python -m langgraph_agent_lab.demo_api"
+    "demo:api": ".venv\\Scripts\\python.exe -m langgraph_agent_lab.demo_api"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
