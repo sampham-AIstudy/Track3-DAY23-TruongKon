@@ -121,6 +121,79 @@ function Revealed({ active, delay, children }: { active: boolean; delay: number;
   )
 }
 
+function WorkflowNode({
+  x,
+  y,
+  label,
+  width = 130,
+  accent = false,
+}: {
+  x: number
+  y: number
+  label: string
+  width?: number
+  accent?: boolean
+}) {
+  const color = accent ? ACCENT : DARK
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height="42" rx="4" fill="rgba(255,255,255,0.18)" stroke={color} strokeWidth="1.4" />
+      <text x={x + width / 2} y={y + 26} fill={color} fontSize="11" fontWeight="600" letterSpacing="1.1" textAnchor="middle">
+        {label}
+      </text>
+    </g>
+  )
+}
+
+function WorkflowDiagram() {
+  return (
+    <div className="mt-8 max-w-5xl overflow-x-auto border-y border-[#162C3D]/30 py-3" aria-label="Sơ đồ workflow LangGraph">
+      <svg className="h-auto min-w-[760px] w-full" viewBox="0 0 1120 330" role="img" aria-label="Luồng tiếp nhận, phân loại, công cụ, phê duyệt, thử lại và kết thúc">
+        <defs>
+          <marker id="workflow-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 8 4 L 0 8 z" fill={DARK} />
+          </marker>
+          <marker id="workflow-arrow-accent" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 8 4 L 0 8 z" fill={ACCENT} />
+          </marker>
+        </defs>
+
+        <path d="M 145 82 H 180 M 320 82 H 355 M 495 82 H 530 M 670 82 H 705 M 845 82 H 880 M 1020 82 H 1050" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#workflow-arrow)" />
+        <path d="M 250 103 V 188 H 285 M 405 188 H 450 M 580 188 H 610 M 750 188 H 790" fill="none" stroke={ACCENT} strokeWidth="1.5" markerEnd="url(#workflow-arrow-accent)" />
+        <path d="M 860 167 V 140 H 420 V 104" fill="none" stroke={ACCENT} strokeWidth="1.5" markerEnd="url(#workflow-arrow-accent)" />
+        <path d="M 860 209 V 276 H 880" fill="none" stroke={ACCENT} strokeWidth="1.5" markerEnd="url(#workflow-arrow-accent)" />
+        <path d="M 1020 276 H 1050 V 124" fill="none" stroke={DARK} strokeWidth="1.5" markerEnd="url(#workflow-arrow)" />
+        <path d="M 595 103 V 255" fill="none" stroke={DARK} strokeDasharray="4 4" strokeWidth="1.3" markerEnd="url(#workflow-arrow)" />
+        <path d="M 645 255 V 135 H 420 V 104" fill="none" stroke={DARK} strokeDasharray="4 4" strokeWidth="1.3" markerEnd="url(#workflow-arrow)" />
+        <path d="M 320 103 V 276 H 880" fill="none" stroke={DARK} strokeWidth="1.3" markerEnd="url(#workflow-arrow)" />
+
+        <text x="162" y="70" fill="rgba(22,44,61,0.7)" fontSize="9" letterSpacing="1">ROUTE</text>
+        <text x="840" y="158" fill={ACCENT} fontSize="9" letterSpacing="1">ĐỒNG Ý</text>
+        <text x="865" y="244" fill={ACCENT} fontSize="9" letterSpacing="1">TỪ CHỐI</text>
+        <text x="605" y="242" fill="rgba(22,44,61,0.7)" fontSize="9" letterSpacing="1">LỖI</text>
+        <text x="650" y="147" fill="rgba(22,44,61,0.7)" fontSize="9" letterSpacing="1">THỬ LẠI</text>
+
+        <WorkflowNode x={15} y={61} label="TIẾP NHẬN" />
+        <WorkflowNode x={180} y={61} label="PHÂN LOẠI" />
+        <WorkflowNode x={355} y={61} label="CÔNG CỤ" />
+        <WorkflowNode x={530} y={61} label="ĐÁNH GIÁ" />
+        <WorkflowNode x={705} y={61} label="TRẢ LỜI" />
+        <WorkflowNode x={880} y={61} label="KẾT THÚC" />
+        <WorkflowNode x={285} y={167} label="RỦI RO" width={120} accent />
+        <WorkflowNode x={450} y={167} label="ĐỀ XUẤT" width={130} accent />
+        <WorkflowNode x={610} y={167} label="PHÊ DUYỆT" width={140} accent />
+        <WorkflowNode x={790} y={167} label="GATE RỦI RO" width={140} accent />
+        <WorkflowNode x={880} y={255} label="LÀM RÕ" />
+        <WorkflowNode x={575} y={255} label="THỬ LẠI" />
+
+        <text x="285" y="154" fill={ACCENT} fontSize="10" fontWeight="600" letterSpacing="1.1">HÀNH ĐỘNG RỦI RO</text>
+        <text x="880" y="307" fill="rgba(22,44,61,0.72)" fontSize="10" fontWeight="600" letterSpacing="1.1">THIẾU THÔNG TIN</text>
+        <text x="575" y="307" fill="rgba(22,44,61,0.72)" fontSize="10" fontWeight="600" letterSpacing="1.1">RECOVERY CÓ GIỚI HẠN</text>
+      </svg>
+    </div>
+  )
+}
+
 function App() {
   const { containerRef, videoRef, canvasRef, scrollProgress, canvasLive } = useVideoScrub(VIDEO_SRC)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -282,30 +355,7 @@ function App() {
                 </p>
               </Revealed>
               <Revealed active={s1Opacity > 0.3} delay={260}>
-                <div className="mt-8 max-w-4xl border-y border-[#162C3D]/30 py-4 text-[10px] font-medium tracking-[0.12em] sm:text-xs">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-3" style={{ color: DARK }}>
-                    <span className="border border-[#162C3D]/45 px-2.5 py-2">TIẾP NHẬN</span>
-                    <ArrowRight size={13} className="opacity-60" />
-                    <span className="border border-[#162C3D]/45 px-2.5 py-2">PHÂN LOẠI</span>
-                    <ArrowRight size={13} className="opacity-60" />
-                    <span className="border border-[#162C3D]/45 px-2.5 py-2">CÔNG CỤ</span>
-                    <ArrowRight size={13} className="opacity-60" />
-                    <span className="border border-[#162C3D]/45 px-2.5 py-2">ĐÁNH GIÁ</span>
-                    <ArrowRight size={13} className="opacity-60" />
-                    <span className="border border-[#162C3D]/45 px-2.5 py-2">TRẢ LỜI</span>
-                    <ArrowRight size={13} className="opacity-60" />
-                    <span className="border border-[#162C3D]/45 px-2.5 py-2">KẾT THÚC</span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-3 text-[#2F657C]">
-                    <span>HÀNH ĐỘNG RỦI RO</span>
-                    <ArrowRight size={13} />
-                    <span className="border border-[#2F657C]/60 px-2.5 py-2">ĐỀ XUẤT</span>
-                    <ArrowRight size={13} />
-                    <span className="border border-[#2F657C]/60 px-2.5 py-2">PHÊ DUYỆT</span>
-                    <ArrowRight size={13} />
-                    <span>ĐỒNG Ý MỚI ĐƯỢC GỌI CÔNG CỤ</span>
-                  </div>
-                </div>
+                <WorkflowDiagram />
               </Revealed>
             </div>
             <Revealed active={s1Opacity > 0.3} delay={300}>

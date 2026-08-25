@@ -84,6 +84,48 @@ def _response_text(response: object) -> str:
     return str(content).strip()
 
 
+def _offline_demo_answer(state: AgentState) -> str:
+    """Create a useful deterministic response when the live LLM is unavailable."""
+    labels = {
+        "intake": "Tiếp nhận",
+        "classify": "Phân loại",
+        "tool": "Công cụ",
+        "evaluate": "Đánh giá",
+        "answer": "Trả lời",
+        "clarify": "Làm rõ",
+        "risky_action": "Đề xuất hành động",
+        "approval": "Phê duyệt",
+        "retry": "Thử lại",
+        "dead_letter": "Dead letter",
+        "finalize": "Kết thúc",
+    }
+    nodes = [
+        str(event.get("node", ""))
+        for event in state.get("events", [])
+        if isinstance(event, dict) and event.get("node")
+    ]
+    trace = " → ".join(labels.get(node, node) for node in [*nodes, "answer", "finalize"])
+    route = state.get("route", "simple")
+    if route == "tool":
+        summary = "Yêu cầu cần tra cứu nên công cụ mock đã được gọi và kết quả đã được đánh giá."
+    elif route == "risky":
+        summary = (
+            "Đây là hành động rủi ro; hệ thống chỉ thực thi sau khi phê duyệt "
+            "đã được ghi nhận."
+        )
+    elif route == "error":
+        summary = (
+            "Hệ thống phát hiện lỗi tạm thời và đã dùng cơ chế thử lại có giới hạn "
+            "trước khi hoàn tất."
+        )
+    else:
+        summary = (
+            "Yêu cầu không cần gọi công cụ hay tạo side effect nên được xử lý bằng "
+            "tuyến đơn giản."
+        )
+    return f"{summary}\n\nLuồng đã chạy: {trace}."
+
+
 def intake_node(state: AgentState) -> dict:
     """Normalize raw query. This node is provided as a working example."""
     query = state.get("query", "").strip()
@@ -224,10 +266,7 @@ def answer_node(state: AgentState) -> dict:
     }
     if os.getenv("LANGGRAPH_OFFLINE_DEMO") == "true":
         return {
-            "final_answer": (
-                "Offline demo response grounded in workflow context: "
-                f"query={query!r}; tool_results={context['tool_results']!r}."
-            ),
+            "final_answer": _offline_demo_answer(state),
             "events": [make_event("answer", "offline_demo", "offline demo answer generated")],
         }
     prompt = f"""Answer the user's request helpfully and concisely.
